@@ -207,6 +207,15 @@ class LightweightSlotMonitor:
 
     async def send_telegram_notification(self, slots: List[Dict]):
         """Send notification via Telegram (only main consulates)"""
+        if os.getenv('NOTIFICATION_TRANSPORT', 'telegram') == 'whatsapp':
+            from whatsapp_notifications import send_notification
+            try:
+                confirmed = await send_notification(self.format_telegram_message(slots))
+                if not confirmed:
+                    logger.error("WhatsApp submission not confirmed; no Telegram fallback")
+            except OSError:
+                logger.error("WhatsApp client unavailable; no Telegram fallback")
+            return
         if not self.telegram_bot_token or not self.telegram_chat_id:
             logger.warning("Telegram credentials not configured")
             return
