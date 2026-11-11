@@ -21,8 +21,29 @@ Restore `NOTIFICATION_TRANSPORT=telegram` and restart to roll back.
 
 This change covers the slot alert path in `monitor.py`. The older automation
 entrypoints in `main.py` and `slot_checker.py` still use Telegram; they are not
-the loaded Mac LaunchAgent. A locally added raw Telegram health-message method
-is outside this change and must not be used to verify WhatsApp delivery.
+the loaded Mac LaunchAgent.
+
+The owner's uncommitted `LightweightSlotMonitor.send_telegram_message` health
+method is absent from the repository base. The local deployment adds these
+seven lines immediately before its Telegram credential check, preserving the
+rest of the method and all other owner edits:
+
+```python
+        if os.getenv('NOTIFICATION_TRANSPORT', 'telegram') == 'whatsapp':
+            from whatsapp_notifications import send_notification
+            try:
+                return await send_notification(message)
+            except OSError:
+                logger.error("WhatsApp client unavailable; no Telegram fallback")
+                return False
+```
+
+The exact local-only diff is stored privately at
+`~/.config/whatsapp-notifications/visa-health-transport.patch`. From this project,
+`git apply -R <that path>` reverses only this deployment patch. It is deliberately
+not staged because committing the surrounding method would include unrelated
+owner work. Both active notification methods use the same adapter when WhatsApp
+is selected. Do not invoke the health-message command as a setup test.
 
 Validation: Python syntax and staged whitespace checks. Recommended follow-up:
 with permission for a real message, confirm a scheduled slot alert arrives in
